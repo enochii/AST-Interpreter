@@ -68,7 +68,12 @@ class Environment {
    FunctionDecl * mOutput;
 
    FunctionDecl * mEntry;
+
+	StackFrame& stackTop() {
+		return mStack.back();
+	}
 public:
+	static const int SCH001 = 11217991;
    /// Get the declartions to the built-in functions
    Environment() : mStack(), mFree(NULL), mMalloc(NULL), mInput(NULL), mOutput(NULL), mEntry(NULL) {
    }
@@ -96,15 +101,40 @@ public:
    void binop(BinaryOperator *bop) {
 	   Expr * left = bop->getLHS();
 	   Expr * right = bop->getRHS();
-	   int val = mStack.back().getStmtVal(right);
-	   
+	   int lval = mStack.back().getStmtVal(left);
+	   int rval = mStack.back().getStmtVal(right);
+
+	   auto op = bop->getOpcode();
 	   if (bop->isAssignmentOp()) {
 		   
-		   mStack.back().bindStmt(left, val);
+		   mStack.back().bindStmt(left, rval);
 		   if (DeclRefExpr * declexpr = dyn_cast<DeclRefExpr>(left)) {
 			   Decl * decl = declexpr->getFoundDecl();
-			   mStack.back().bindDecl(decl, val);
+			   mStack.back().bindDecl(decl, rval);
 		   }
+	   } else if(bop->isAdditiveOp()) {
+		   stackTop().bindStmt(bop, lval+rval);
+	   } else if(bop->isComparisonOp()) {
+		   int val = SCH001;
+		   switch(op) {
+			case BO_LT: 
+				val = lval < rval; break;
+			case BO_GT: 
+				val = lval > rval; break;
+			case BO_LE: 
+				val = lval <= rval; break;
+			case BO_GE: 
+				val = lval >= rval; break;
+			case BO_EQ: 
+				val = lval == rval; break;
+			case BO_NE: 
+				val = lval != rval; break;
+		   }
+		   stackTop().bindStmt(bop, val);
+	   }
+
+	   else {
+		   llvm::errs() << bop->getStmtClassName() << "Not Supported\n";
 	   }
    }
 
