@@ -33,6 +33,10 @@ public:
 	   mExprs[stmt] = val;
    }
    int getStmtVal(Stmt * stmt) {
+	   IntegerLiteral* pi;
+	   if((pi = dyn_cast<IntegerLiteral>(stmt))) {
+		   return pi->getValue().getSExtValue();
+	   }
 	   assert (mExprs.find(stmt) != mExprs.end());
 	   return mExprs[stmt];
    }
@@ -92,9 +96,10 @@ public:
    void binop(BinaryOperator *bop) {
 	   Expr * left = bop->getLHS();
 	   Expr * right = bop->getRHS();
-
+	   int val = mStack.back().getStmtVal(right);
+	   
 	   if (bop->isAssignmentOp()) {
-		   int val = mStack.back().getStmtVal(right);
+		   
 		   mStack.back().bindStmt(left, val);
 		   if (DeclRefExpr * declexpr = dyn_cast<DeclRefExpr>(left)) {
 			   Decl * decl = declexpr->getFoundDecl();

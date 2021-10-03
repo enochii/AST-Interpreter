@@ -75,5 +75,5 @@ int main (int argc, char ** argv) {
    if (argc > 1) {
        clang::tooling::runToolOnCode(std::unique_ptr<clang::FrontendAction>(new InterpreterClassAction), argv[1]);
    }
-   std::cout << "Hello sch001\n";
+   // std::cout << "Hello sch001\n";
 }

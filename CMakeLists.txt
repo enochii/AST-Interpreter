@@ -10,7 +10,7 @@ link_directories(${LLVM_LIBRARY_DIRS})
 
 file(GLOB SOURCE "./*.cpp")
 
-add_executable(ast-interpreter ${SOURCE})
+add_executable(asti ${SOURCE})
 
 set( LLVM_LINK_COMPONENTS
   ${LLVM_TARGETS_TO_BUILD}
@@ -19,12 +19,12 @@ set( LLVM_LINK_COMPONENTS
   )
 
 
-target_link_libraries(ast-interpreter
+target_link_libraries(asti
   clangAST
   clangBasic
   clangFrontend
   clangTooling
   )
 
-install(TARGETS ast-interpreter
+install(TARGETS asti
   RUNTIME DESTINATION bin)
