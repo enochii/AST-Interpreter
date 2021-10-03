@@ -1,6 +1,7 @@
 //==--- tools/clang-check/ClangInterpreter.cpp - Clang Interpreter tool --------------===//
 //===----------------------------------------------------------------------===//
 #include <stdio.h>
+#include <exception>
 
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/Decl.h"
@@ -59,6 +60,16 @@ public:
 };
 */
 
+class ReturnException: public std::exception {
+	int mRet;
+public:
+	ReturnException(int ret):mRet(ret) {}
+
+	int getRetVal() {
+		return mRet;
+	}
+};
+
 class Environment {
    std::vector<StackFrame> mStack;
 
@@ -69,10 +80,14 @@ class Environment {
 
    FunctionDecl * mEntry;
 
+public:
+	void stackPop() {
+		mStack.pop_back();
+	}
+
 	StackFrame& stackTop() {
 		return mStack.back();
 	}
-public:
 	static const int SCH001 = 11217991;
    /// Get the declartions to the built-in functions
    Environment() : mStack(), mFree(NULL), mMalloc(NULL), mInput(NULL), mOutput(NULL), mEntry(NULL) {
@@ -182,8 +197,16 @@ public:
 		   llvm::errs() << val;
 	   } else {
 		   /// You could add your code here for Function call Return
+		    mStack.push_back(StackFrame());
+		    int retVal = 0;
+			mStack.back().setPC(callee->getBody());
 	   }
    }
+
+	void retrn(ReturnStmt * retstmt) {
+		stackTop().setPC(retstmt);
+		int val = stackTop().getStmtVal(retstmt->getRetValue());
+		llvm::errs() << "return val: " << val << "\n";
+		throw ReturnException(val);
+	}
 };
-
-

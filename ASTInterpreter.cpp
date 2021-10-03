@@ -35,9 +35,22 @@ public:
    virtual void VisitCallExpr(CallExpr * call) {
 	   VisitStmt(call);
 	   mEnv->call(call);
+      try {
+         VisitStmt(mEnv->stackTop().getPC());
+      } catch (ReturnException& e) {
+         int retVal = e.getRetVal();
+         mEnv->stackPop();
+         llvm::errs() << "catch val: " << retVal << "\n";
+         mEnv->stackTop().bindStmt(call, retVal);
+      }
    }
    virtual void VisitDeclStmt(DeclStmt * declstmt) {
 	   mEnv->decl(declstmt);
+   }
+
+   virtual void VisitReturnStmt(ReturnStmt * retstmt) {
+      VisitStmt(retstmt);
+      mEnv->retrn(retstmt);
    }
 private:
    Environment * mEnv;
