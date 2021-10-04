@@ -37,6 +37,7 @@ public:
    virtual void VisitCallExpr(CallExpr * call) {
 	   VisitStmt(call);
 	   mEnv->call(call);
+      // FunctionDecl * callee = call->getDirectCallee();
       try {
          VisitStmt(mEnv->stackTop().getPC());
       } catch (ReturnException& e) {
@@ -53,6 +54,13 @@ public:
       // VisitStmt(declstmt);
 	   mEnv->decl(declstmt);
    }
+
+   // virtual void VisitParmVarDecl(ParmVarDecl * parmdecl) {
+   // #if DEBUG_FLAG 
+   //    llvm::errs() << "VisitParmVarDecl" << "\n"; 
+   // #endif
+   //    mEnv->parm(parmdecl);
+   // }
 
    virtual void VisitReturnStmt(ReturnStmt * retstmt) {
       VisitStmt(retstmt);

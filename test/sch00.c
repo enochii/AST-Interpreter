@@ -5,12 +5,15 @@ extern void PRINT(int);
 
 // simple call handling
 int f(int x) {
-    int b = 1211;
-    return b;
+    x = 10;
+    if(x > 9) 
+        PRINT(1);
+    // int b = 1211;
+    return x;
 }
 
 int main() {
     int a;
     a = f(10);
-    PRINT(a);
+    PRINT(f(10));
 }

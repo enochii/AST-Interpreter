@@ -154,6 +154,10 @@ public:
 	   }
    }
 
+	void parm(ParmVarDecl * parmdecl) {
+		stackTop().bindDecl(parmdecl, 0);
+	}
+
    void decl(DeclStmt * declstmt) {
 	   for (DeclStmt::decl_iterator it = declstmt->decl_begin(), ie = declstmt->decl_end();
 			   it != ie; ++ it) {
@@ -204,7 +208,11 @@ public:
 		   llvm::errs() << val;
 	   } else {
 		   /// You could add your code here for Function call Return
-		    mStack.push_back(StackFrame());
+		    mStack.push_back(StackFrame()); // push frame
+			// define parameter list
+			for(int i=0; i<callee->getNumParams(); i++) {
+				this->parm(callee->getParamDecl(i));
+			}
 		    int retVal = 0;
 			mStack.back().setPC(callee->getBody());
 	   }
