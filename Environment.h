@@ -13,7 +13,9 @@
 
 using namespace clang;
 
+// class Environment;
 class StackFrame {
+  // friend class Environment;
   /// StackFrame maps Variable Declaration to Value
   /// Which are either integer or addresses (also represented using an Integer
   /// value)
@@ -25,6 +27,7 @@ class StackFrame {
 public:
   StackFrame() : mVars(), mExprs(), mPC() {}
 
+  bool hasDecl(Decl *decl) { return mVars.find(decl) != mVars.end(); }
   void bindDecl(Decl *decl, int val) { mVars[decl] = val; }
   int getDeclVal(Decl *decl) {
     assert(mVars.find(decl) != mVars.end());
@@ -79,6 +82,32 @@ public:
 
   StackFrame &stackTop() { return mStack.back(); }
 
+  StackFrame &globalScope() { return mStack[0]; } 
+
+  void bindDecl(Decl *decl, int val) { 
+    if(stackTop().hasDecl(decl)) {
+      stackTop().bindDecl(decl, val);
+    } else {
+      /// it should be a global variable
+      llvm::errs() << "bind global decl\n";
+      globalScope().bindDecl(decl, val);
+    }
+  }
+  int getDeclVal(Decl *decl) {
+    if(stackTop().hasDecl(decl)) {
+      return stackTop().getDeclVal(decl);
+    } else {
+      /// it should be a global variable
+      llvm::errs() << "get global decl\n";
+      decl->dump();
+      return globalScope().getDeclVal(decl);
+    }
+  }
+  void bindStmt(Stmt *stmt, int val) { stackTop().bindStmt(stmt, val); }
+  int getStmtVal(Stmt *stmt) {
+    return stackTop().getStmtVal(stmt);
+  }
+
   static const int SCH001 = 11217991;
   /// Get the declartions to the built-in functions
   Environment()
@@ -87,6 +116,7 @@ public:
 
   /// Initialize the Environment
   void init(TranslationUnitDecl *unit) {
+    mStack.push_back(StackFrame());
     for (TranslationUnitDecl::decl_iterator i = unit->decls_begin(),
                                             e = unit->decls_end();
          i != e; ++i) {
@@ -101,9 +131,11 @@ public:
           mOutput = fdecl;
         else if (fdecl->getName().equals("main"))
           mEntry = fdecl;
+      } else if(VarDecl *vdecl = dyn_cast<VarDecl>(*i)) {
+        /// global variable?
+        this->handleVarDecl(vdecl);
       }
     }
-    mStack.push_back(StackFrame());
   }
 
   FunctionDecl *getEntry() { return mEntry; }
@@ -120,7 +152,7 @@ public:
       mStack.back().bindStmt(left, rval);
       if (DeclRefExpr *declexpr = dyn_cast<DeclRefExpr>(left)) {
         Decl *decl = declexpr->getFoundDecl();
-        mStack.back().bindDecl(decl, rval);
+        this->bindDecl(decl, rval);
       }
     } else if (bop->isAdditiveOp()) {
       int res = 0;
@@ -160,19 +192,24 @@ public:
 
   void parm(ParmVarDecl *parmdecl, int val) { stackTop().bindDecl(parmdecl, val); }
 
+  /// use by global & local
+  void handleVarDecl(VarDecl * vardecl) {
+    int val = 0;
+    Expr *expr = vardecl->getInit();
+    IntegerLiteral *pi;
+    if (expr != NULL && (pi = dyn_cast<IntegerLiteral>(expr))) {
+      val = pi->getValue().getSExtValue();
+    }
+    mStack.back().bindDecl(vardecl, val);
+  }
+
   void decl(DeclStmt *declstmt) {
     for (DeclStmt::decl_iterator it = declstmt->decl_begin(),
                                  ie = declstmt->decl_end();
          it != ie; ++it) {
       Decl *decl = *it;
       if (VarDecl *vardecl = dyn_cast<VarDecl>(decl)) {
-        int val = 0;
-        Expr *expr = vardecl->getInit();
-        IntegerLiteral *pi;
-        if (expr != NULL && (pi = dyn_cast<IntegerLiteral>(expr))) {
-          val = pi->getValue().getSExtValue();
-        }
-        mStack.back().bindDecl(vardecl, val);
+        handleVarDecl(vardecl);
       }
     }
   }
@@ -181,7 +218,7 @@ public:
     if (declref->getType()->isIntegerType()) {
       Decl *decl = declref->getFoundDecl();
 
-      int val = mStack.back().getDeclVal(decl);
+      int val = this->getDeclVal(decl);
       mStack.back().bindStmt(declref, val);
     }
   }
