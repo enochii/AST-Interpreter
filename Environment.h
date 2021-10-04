@@ -41,6 +41,7 @@ public:
 	   assert (mExprs.find(stmt) != mExprs.end());
 	   return mExprs[stmt];
    }
+
    void setPC(Stmt * stmt) {
 	   mPC = stmt;
    }
@@ -133,18 +134,19 @@ public:
 		   int val = SCH001;
 		   switch(op) {
 			case BO_LT: 
-				val = lval < rval; break;
+				val = (lval < rval); break;
 			case BO_GT: 
-				val = lval > rval; break;
+				val = (lval > rval); break;
 			case BO_LE: 
-				val = lval <= rval; break;
+				val = (lval <= rval); break;
 			case BO_GE: 
-				val = lval >= rval; break;
+				val = (lval >= rval); break;
 			case BO_EQ: 
-				val = lval == rval; break;
+				val = (lval == rval); break;
 			case BO_NE: 
-				val = lval != rval; break;
+				val = (lval != rval); break;
 		   }
+		   llvm::errs() << "op: " << op << "val " << val << "\n"; 
 		   stackTop().bindStmt(bop, val);
 	   }
 
