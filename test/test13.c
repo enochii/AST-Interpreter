@@ -3,7 +3,7 @@ extern void * MALLOC(int);
 extern void FREE(void *);
 extern void PRINT(int);
 
-int b;
+// int b;
 int f(int x) {
   return x + 10;
 }

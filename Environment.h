@@ -34,12 +34,17 @@ public:
     assert(mVars.find(decl) != mVars.end());
     return mVars.find(decl)->second;
   }
+
+  bool hasStmt(Stmt *stmt) { return mExprs.find(stmt) != mExprs.end(); }
   void bindStmt(Stmt *stmt, int val) { mExprs[stmt] = val; }
   int getStmtVal(Stmt *stmt) {
     // IntegerLiteral *pi;
     // if ((pi = dyn_cast<IntegerLiteral>(stmt))) {
     //   return pi->getValue().getSExtValue();
     // }
+    if(!hasStmt(stmt)) {
+      stmt->dump();
+    }
     assert(mExprs.find(stmt) != mExprs.end());
     return mExprs[stmt];
   }
@@ -118,8 +123,8 @@ public:
       return stackTop().getDeclVal(decl);
     } else {
       /// it should be a global variable
-      llvm::errs() << "get global decl\n";
-      decl->dump();
+      // llvm::errs() << "get global decl\n";
+      // decl->dump();
       return globalScope().getDeclVal(decl);
     }
   }
@@ -192,6 +197,14 @@ public:
       if (DeclRefExpr *declexpr = dyn_cast<DeclRefExpr>(left)) {
         Decl *decl = declexpr->getFoundDecl();
         this->bindDecl(decl, rval);
+      } else if(ArraySubscriptExpr * arrsub = dyn_cast<ArraySubscriptExpr>(left)) {
+        auto& arr = getArray(arrsub);
+        auto idx = getArrayIdx(arrsub);
+        arr.set(idx, rval);
+        this->bindStmt(arrsub, rval);
+      } else {
+        llvm::errs() << "Below Assignment is Not Supported\n";
+        left->dump();
       }
     } else if (bop->isAdditiveOp()) {
       if (opCode == BO_Add) res = lval + rval;
@@ -270,14 +283,22 @@ public:
     }
   }
 
-  void arraysub(ArraySubscriptExpr * arrsubexpr) {
-    llvm::errs() << "getBase() " << arrsubexpr->getBase() << "\n";
+  Array& getArray(ArraySubscriptExpr * arrsubexpr) {
     int arrayID = stackTop().getStmtVal(arrsubexpr->getBase());
     assert(arrayID < mArrays.size());
-    auto arr = mArrays[arrayID];
-    int idx = stackTop().getStmtVal(arrsubexpr->getIdx());
+    return mArrays[arrayID];
+  }
+
+  int getArrayIdx(ArraySubscriptExpr * arrsubexpr) {
+    return stackTop().getStmtVal(arrsubexpr->getIdx());
+  }
+
+  void arraysub(ArraySubscriptExpr * arrsubexpr) {
+    // llvm::errs() << "getBase() " << arrsubexpr->getBase() << "\n";
+    auto& arr = getArray(arrsubexpr);
+    int idx = getArrayIdx(arrsubexpr);
     int res = arr.get(idx);
-    llvm::errs() << "array ID=" << arrayID << " index=" << idx << " -> " << res << "\n";
+    // llvm::errs() << "arr[" << idx << "]-> " << res << "\n";
     stackTop().bindStmt(arrsubexpr, res);
   }
 
@@ -294,7 +315,7 @@ public:
   void declref(DeclRefExpr *declref) {
     mStack.back().setPC(declref);
     if (isValidDeclRefType(declref)) {
-      declref->dump();
+      // declref->dump();
       Decl *decl = declref->getFoundDecl();
 
       int val = this->getDeclVal(decl);

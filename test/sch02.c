@@ -5,5 +5,7 @@ extern void PRINT(int);
 
 int main() {
 	int a[3];
-    PRINT(a[2] + 1222222);
+    PRINT(a[2]);
+    a[2] = 10;
+    PRINT(a[2]);
 }

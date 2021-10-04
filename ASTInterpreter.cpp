@@ -60,8 +60,7 @@ public:
   }
   virtual void VisitDeclStmt(DeclStmt *declstmt) {
 #if DEBUG_FLAG
-    llvm::errs() << "VisitDeclStmt"
-                 << "\n";
+    // llvm::errs() << "VisitDeclStmt" << "\n";
 #endif
     // VisitStmt(declstmt);
     mEnv->decl(declstmt);
@@ -70,15 +69,15 @@ public:
   int getChildrenSize(Stmt * stmt) {
     int i = 0;
     for (auto c:stmt->children()) {
-      llvm::errs() << "child " << i << " " << c << " ";
+      // llvm::errs() << "child " << i << " " << c << " ";
       i++;
     }
-    llvm::errs() << "\n";
+    // llvm::errs() << "\n";
     return i;
   }
   virtual void VisitArraySubscriptExpr(ArraySubscriptExpr * arrsubexpr) {
-    arrsubexpr->dump();
-    llvm::errs() << "children size=" << getChildrenSize(arrsubexpr) << "\n";
+    // arrsubexpr->dump();
+    // llvm::errs() << "children size=" << getChildrenSize(arrsubexpr) << "\n";
     VisitStmt(arrsubexpr);
     mEnv->arraysub(arrsubexpr);
   }
@@ -142,12 +141,12 @@ public:
     if(stmt) {
       bool flag = false;
       if(DeclRefExpr * declref = dyn_cast<DeclRefExpr>(stmt)) {
-        if(!mEnv->isBuiltInDecl(declref)) {
-          stmt->dump();
+        if(!declref->getType()->isFunctionType()/*!mEnv->isBuiltInDecl(declref)*/) {
+          // stmt->dump();
           mEnv->bindStmt(icastexpr, mEnv->stackTop().getStmtVal(stmt));
         }
       } else if(ArraySubscriptExpr * arrsub = dyn_cast<ArraySubscriptExpr>(stmt)) {
-          stmt->dump();
+          // stmt->dump();
           mEnv->bindStmt(icastexpr, mEnv->stackTop().getStmtVal(stmt));
       }
     }
