@@ -73,11 +73,11 @@ public:
     this->Visit(condExpr);
     int cond = mEnv->stackTop().getStmtVal(condExpr);
     if (cond) {
-      llvm::errs() << "then branch\n";
+      // llvm::errs() << "then branch\n";
       this->Visit(ifstmt->getThen());
     } else {
       this->Visit(ifstmt->getElse());
-      llvm::errs() << "else branch\n";
+      // llvm::errs() << "else branch\n";
     }
   }
 

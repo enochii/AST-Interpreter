@@ -78,6 +78,7 @@ public:
   void stackPop() { mStack.pop_back(); }
 
   StackFrame &stackTop() { return mStack.back(); }
+
   static const int SCH001 = 11217991;
   /// Get the declartions to the built-in functions
   Environment()
@@ -114,7 +115,7 @@ public:
     int lval = mStack.back().getStmtVal(left);
     int rval = mStack.back().getStmtVal(right);
 
-    auto op = bop->getOpcode();
+    auto opCode = bop->getOpcode();
     if (bop->isAssignmentOp()) {
       mStack.back().bindStmt(left, rval);
       if (DeclRefExpr *declexpr = dyn_cast<DeclRefExpr>(left)) {
@@ -122,10 +123,13 @@ public:
         mStack.back().bindDecl(decl, rval);
       }
     } else if (bop->isAdditiveOp()) {
-      stackTop().bindStmt(bop, lval + rval);
+      int res = 0;
+      if (opCode == BO_Add) res = lval + rval;
+      else res = lval - rval;
+      stackTop().bindStmt(bop, res);
     } else if (bop->isComparisonOp()) {
       int val = SCH001;
-      switch (op) {
+      switch (opCode) {
       case BO_LT:
         val = (lval < rval);
         break;
@@ -145,7 +149,7 @@ public:
         val = (lval != rval);
         break;
       }
-      llvm::errs() << "op: " << op << "val " << val << "\n";
+      // llvm::errs() << "op: " << op << "val " << val << "\n";
       stackTop().bindStmt(bop, val);
     }
 
@@ -154,7 +158,7 @@ public:
     }
   }
 
-  void parm(ParmVarDecl *parmdecl) { stackTop().bindDecl(parmdecl, 0); }
+  void parm(ParmVarDecl *parmdecl, int val) { stackTop().bindDecl(parmdecl, val); }
 
   void decl(DeclStmt *declstmt) {
     for (DeclStmt::decl_iterator it = declstmt->decl_begin(),
@@ -206,11 +210,19 @@ public:
       val = mStack.back().getStmtVal(decl);
       llvm::errs() << val;
     } else {
+      /// first we get the arguments from caller frame
+      std::vector<int> args;
+      Expr ** exprList = callexpr->getArgs();
+      for(int i=0; i<callexpr->getNumArgs(); i++) {
+        int val = stackTop().getStmtVal(exprList[i]);
+        args.push_back(val);
+      }
       /// You could add your code here for Function call Return
       mStack.push_back(StackFrame()); // push frame
       // define parameter list
+      assert(callee->getNumParams() == callexpr->getNumArgs());
       for (int i = 0; i < callee->getNumParams(); i++) {
-        this->parm(callee->getParamDecl(i));
+        this->parm(callee->getParamDecl(i), args[i]);
       }
       int retVal = 0;
       mStack.back().setPC(callee->getBody());
