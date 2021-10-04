@@ -35,10 +35,10 @@ public:
   }
   void bindStmt(Stmt *stmt, int val) { mExprs[stmt] = val; }
   int getStmtVal(Stmt *stmt) {
-    IntegerLiteral *pi;
-    if ((pi = dyn_cast<IntegerLiteral>(stmt))) {
-      return pi->getValue().getSExtValue();
-    }
+    // IntegerLiteral *pi;
+    // if ((pi = dyn_cast<IntegerLiteral>(stmt))) {
+    //   return pi->getValue().getSExtValue();
+    // }
     assert(mExprs.find(stmt) != mExprs.end());
     return mExprs[stmt];
   }
@@ -140,6 +140,24 @@ public:
 
   FunctionDecl *getEntry() { return mEntry; }
 
+  void uop(UnaryOperator * uop) {
+    auto opCode = uop->getOpcode();
+    int val = stackTop().getStmtVal(uop->getSubExpr());
+    switch(opCode) {
+      case UO_Minus:
+        val = -val;
+        break;
+      case UO_Plus:
+        break;
+      case UO_Not:
+        val = ~val;
+        break;
+      case UO_LNot:
+        val = !val;
+        break;
+    }
+    stackTop().bindStmt(uop, val);
+  }
   /// !TODO Support comparison operation
   void binop(BinaryOperator *bop) {
     Expr *left = bop->getLHS();
@@ -148,6 +166,7 @@ public:
     int rval = mStack.back().getStmtVal(right);
 
     auto opCode = bop->getOpcode();
+    int res = 0;
     if (bop->isAssignmentOp()) {
       mStack.back().bindStmt(left, rval);
       if (DeclRefExpr *declexpr = dyn_cast<DeclRefExpr>(left)) {
@@ -155,9 +174,12 @@ public:
         this->bindDecl(decl, rval);
       }
     } else if (bop->isAdditiveOp()) {
-      int res = 0;
       if (opCode == BO_Add) res = lval + rval;
       else res = lval - rval;
+      stackTop().bindStmt(bop, res);
+    } else if (bop->isMultiplicativeOp()) {
+      if(opCode == BO_Mul) res = lval * rval;
+      else res = lval % rval;
       stackTop().bindStmt(bop, res);
     } else if (bop->isComparisonOp()) {
       int val = SCH001;
@@ -186,7 +208,8 @@ public:
     }
 
     else {
-      llvm::errs() << bop->getStmtClassName() << "Not Supported\n";
+      llvm::errs() << "Below Binary op is Not Supported\n";
+      bop->dump();
     }
   }
 

@@ -26,6 +26,17 @@ public:
     VisitStmt(bop);
     mEnv->binop(bop);
   }
+
+  virtual void VisitUnaryOperator(UnaryOperator * uop) {
+    VisitStmt(uop);
+    mEnv->uop(uop);
+  }
+
+  virtual void VisitIntegerLiteral(IntegerLiteral * il) {
+    int val = il->getValue().getSExtValue();
+    mEnv->bindStmt(il, val);
+  }
+
   virtual void VisitDeclRefExpr(DeclRefExpr *expr) {
     VisitStmt(expr);
     mEnv->declref(expr);
@@ -74,13 +85,35 @@ public:
     int cond = mEnv->stackTop().getStmtVal(condExpr);
     if (cond) {
       // llvm::errs() << "then branch\n";
-      this->Visit(ifstmt->getThen());
+      if (ifstmt->getThen()) this->Visit(ifstmt->getThen());
     } else {
-      this->Visit(ifstmt->getElse());
+      if (ifstmt->getElse()) this->Visit(ifstmt->getElse());
       // llvm::errs() << "else branch\n";
     }
   }
 
+  virtual void VisitWhileStmt(WhileStmt * wstmt) {
+    Expr * condExpr = wstmt->getCond();
+    do {
+      this->Visit(condExpr);
+      int cond = mEnv->getStmtVal(condExpr);
+      if(!cond) break;
+      this->Visit(wstmt->getBody());
+    } while (true);
+  }
+
+  virtual void VisitForStmt(ForStmt * fstmt) {
+    Stmt * initstmt = fstmt->getInit();
+    this->Visit(initstmt);
+    Expr * condExpr = fstmt->getCond();
+    do {
+      this->Visit(condExpr);
+      int cond = mEnv->getStmtVal(condExpr);
+      if(!cond) break;
+      this->Visit(fstmt->getBody());
+      this->Visit(fstmt->getInc());
+    } while (true);
+  }
 private:
   Environment *mEnv;
 };
