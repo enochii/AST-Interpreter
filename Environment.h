@@ -122,7 +122,6 @@ public:
 
 	   auto op = bop->getOpcode();
 	   if (bop->isAssignmentOp()) {
-		   
 		   mStack.back().bindStmt(left, rval);
 		   if (DeclRefExpr * declexpr = dyn_cast<DeclRefExpr>(left)) {
 			   Decl * decl = declexpr->getFoundDecl();
@@ -160,7 +159,13 @@ public:
 			   it != ie; ++ it) {
 		   Decl * decl = *it;
 		   if (VarDecl * vardecl = dyn_cast<VarDecl>(decl)) {
-			   mStack.back().bindDecl(vardecl, 0);
+				int val = 0;
+				Expr* expr = vardecl->getInit();
+				IntegerLiteral* pi;
+				if(expr != NULL && (pi = dyn_cast<IntegerLiteral>(expr))) {
+					val = pi->getValue().getSExtValue();
+				}
+			   mStack.back().bindDecl(vardecl, val);
 		   }
 	   }
    }

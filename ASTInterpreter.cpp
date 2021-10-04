@@ -13,6 +13,8 @@ using namespace clang;
 
 #include "Environment.h"
 
+#define DEBUG_FLAG 1
+
 class InterpreterVisitor : 
    public EvaluatedExprVisitor<InterpreterVisitor> {
 public:
@@ -25,7 +27,7 @@ public:
 	   mEnv->binop(bop);
    }
    virtual void VisitDeclRefExpr(DeclRefExpr * expr) {
-	   VisitStmt(expr);
+      VisitStmt(expr);
 	   mEnv->declref(expr);
    }
    virtual void VisitCastExpr(CastExpr * expr) {
@@ -45,6 +47,10 @@ public:
       }
    }
    virtual void VisitDeclStmt(DeclStmt * declstmt) {
+   #if DEBUG_FLAG 
+      llvm::errs() << "VisitDeclStmt" << "\n"; 
+   #endif
+      // VisitStmt(declstmt);
 	   mEnv->decl(declstmt);
    }
 

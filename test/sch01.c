@@ -13,4 +13,6 @@ int main() {
      else {
         PRINT(0);
     }
+    if(a == 1) 
+        PRINT(1);
 }
