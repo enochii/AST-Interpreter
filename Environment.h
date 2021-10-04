@@ -3,6 +3,7 @@
 //===----------------------------------------------------------------------===//
 #include <exception>
 #include <stdio.h>
+#include <vector>
 
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/Decl.h"
@@ -67,8 +68,24 @@ public:
   int getRetVal() { return mRet; }
 };
 
+class Array {
+  int mScope;
+  std::vector<int> mArr;
+public:
+  Array(int sz, int scope):mArr(sz), mScope(scope) {}
+  void set(int i, int val) {
+    assert(i <= mArr.size());
+    mArr[i] = val;
+  }
+  int get(int i) {
+    assert(i <= mArr.size());
+    return mArr[i];
+  }
+};
+
 class Environment {
   std::vector<StackFrame> mStack;
+  std::vector<Array> mArrays;
 
   FunctionDecl *mFree; /// Declartions to the built-in functions
   FunctionDecl *mMalloc;
@@ -78,7 +95,10 @@ class Environment {
   FunctionDecl *mEntry;
 
 public:
-  void stackPop() { mStack.pop_back(); }
+  void stackPop() { 
+    mStack.pop_back();
+    //TODO: clear array
+  }
 
   StackFrame &stackTop() { return mStack.back(); }
 
@@ -217,6 +237,18 @@ public:
 
   /// use by global & local
   void handleVarDecl(VarDecl * vardecl) {
+    auto typeInfo = vardecl->getType();
+    if(typeInfo->isArrayType()) {
+      // array type
+      assert(typeInfo->isConstantArrayType());
+      const ArrayType * arrayType = vardecl->getType()->getAsArrayTypeUnsafe();
+      auto carrayType = dyn_cast<const ConstantArrayType>(arrayType);
+      int sz = carrayType->getSize().getSExtValue();
+      assert(sz > 0);
+      llvm::errs() << "Init a array with size=" << carrayType->getSize() << "\n";
+      mArrays.emplace_back(sz, mStack.size());
+      stackTop().bindDecl(vardecl, mArrays.size()-1);
+    }
     int val = 0;
     Expr *expr = vardecl->getInit();
     IntegerLiteral *pi;
@@ -233,12 +265,36 @@ public:
       Decl *decl = *it;
       if (VarDecl *vardecl = dyn_cast<VarDecl>(decl)) {
         handleVarDecl(vardecl);
+        // llvm::errs() << "opaque data: " << vardecl->getTypeSourceInfo()->getTypeLoc().getOpaqueData() << "\n";
       }
     }
   }
+
+  void arraysub(ArraySubscriptExpr * arrsubexpr) {
+    llvm::errs() << "getBase() " << arrsubexpr->getBase() << "\n";
+    int arrayID = stackTop().getStmtVal(arrsubexpr->getBase());
+    assert(arrayID < mArrays.size());
+    auto arr = mArrays[arrayID];
+    int idx = stackTop().getStmtVal(arrsubexpr->getIdx());
+    int res = arr.get(idx);
+    llvm::errs() << "array ID=" << arrayID << " index=" << idx << " -> " << res << "\n";
+    stackTop().bindStmt(arrsubexpr, res);
+  }
+
+  static bool isValidDeclRefType(DeclRefExpr *declref) {
+    return declref->getType()->isIntegerType() || declref->getType()->isArrayType();
+  }
+
+  bool isBuiltInDecl(DeclRefExpr *declref) {
+    const Decl * decl = declref->getReferencedDeclOfCallee();
+    return declref->getType()->isFunctionType() &&
+    (decl == mInput || decl == mOutput || decl == mMalloc || decl == mFree);
+  }
+
   void declref(DeclRefExpr *declref) {
     mStack.back().setPC(declref);
-    if (declref->getType()->isIntegerType()) {
+    if (isValidDeclRefType(declref)) {
+      declref->dump();
       Decl *decl = declref->getFoundDecl();
 
       int val = this->getDeclVal(decl);

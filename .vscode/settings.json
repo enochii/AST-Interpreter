@@ -1,5 +1,14 @@
 {
     "files.associations": {
-        "*.def": "cpp"
+        "*.def": "cpp",
+        "*.inc": "cpp",
+        "__split_buffer": "cpp",
+        "array": "cpp",
+        "deque": "cpp",
+        "list": "cpp",
+        "queue": "cpp",
+        "string": "cpp",
+        "string_view": "cpp",
+        "vector": "cpp"
     }
 }
