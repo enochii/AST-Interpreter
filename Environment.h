@@ -93,6 +93,15 @@ public:
       int * ptr = actualAddr(addr);
       return *ptr;
     }
+    /// sizeof(int*)
+    static int getPtrSize() {
+      return sizeof(HeapAddr);
+    }
+
+    /// (int*)x + 1, we need to increment 4!
+    static int step2Size(int step) {
+      return step * getPtrSize();
+    }
 };
 
 
@@ -223,6 +232,23 @@ public:
     }
     stackTop().bindStmt(uop, val);
   }
+  int handleAdditive(int opCode, Expr * left, Expr * right, int lval, int rval) {
+    /// handle 
+    auto ltype = left->getType();
+    auto rtype = right->getType();
+    bool lIsPtr = ltype->isPointerType();
+    bool rIsPtr = rtype->isPointerType();
+    if(lIsPtr && rIsPtr) {
+      assert(opCode == BO_Sub);
+      return (lval-rval)/Heap::getPtrSize();
+    } else if(lIsPtr) {
+      rval = Heap::step2Size(rval);
+    } else if(rIsPtr) {
+      lval = Heap::step2Size(lval);
+    } /// else both are integers
+    if (opCode == BO_Add) return lval + rval;
+    else return lval - rval;
+  }
   /// !TODO Support comparison operation
   void binop(BinaryOperator *bop) {
     Expr *left = bop->getLHS();
@@ -253,8 +279,7 @@ public:
       }
     } else if (bop->isAdditiveOp()) {
       int lval = mStack.back().getStmtVal(left);
-      if (opCode == BO_Add) res = lval + rval;
-      else res = lval - rval;
+      res = handleAdditive(opCode, left, right, lval, rval);
       stackTop().bindStmt(bop, res);
     } else if (bop->isMultiplicativeOp()) {
       int lval = mStack.back().getStmtVal(left);

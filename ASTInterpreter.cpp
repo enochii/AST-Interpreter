@@ -134,11 +134,14 @@ public:
     this->VisitStmt(ccastexpr);
     stealBindingFromChild(ccastexpr);
   }
-  /// ??? workaround
   virtual void VisitImplicitCastExpr(ImplicitCastExpr * icastexpr) {
     this->VisitStmt(icastexpr);
     stealBindingFromChild(icastexpr);
   }
+  virtual void VisitParenExpr(ParenExpr * parenexpr) {
+    this->VisitStmt(parenexpr);
+    stealBindingFromChild(parenexpr);
+  } 
   /// for some AST(e.g., ImplicitCastExpr, CStyleCastExpr), we need to have their "value" binding.
   /// so we steal the value binding from their children. Usually, they have only one child.
   void stealBindingFromChild(Stmt * parent) {
