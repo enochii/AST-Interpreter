@@ -130,26 +130,55 @@ public:
     } while (true);
   }
 
+  virtual void VisitCStyleCastExpr(CStyleCastExpr * ccastexpr) {
+    this->VisitStmt(ccastexpr);
+    stealBindingFromChild(ccastexpr);
+  }
   /// ??? workaround
   virtual void VisitImplicitCastExpr(ImplicitCastExpr * icastexpr) {
     this->VisitStmt(icastexpr);
+    stealBindingFromChild(icastexpr);
+  }
+  /// for some AST(e.g., ImplicitCastExpr, CStyleCastExpr), we need to have their "value" binding.
+  /// so we steal the value binding from their children. Usually, they have only one child.
+  void stealBindingFromChild(Stmt * parent) {
     Stmt * stmt = nullptr;
-    for(auto c:icastexpr->children()) {
+    for(auto c:parent->children()) {
       stmt = c;break;
     }
     
     if(stmt) {
-      bool flag = false;
-      if(DeclRefExpr * declref = dyn_cast<DeclRefExpr>(stmt)) {
-        if(!declref->getType()->isFunctionType()/*!mEnv->isBuiltInDecl(declref)*/) {
-          // stmt->dump();
-          mEnv->bindStmt(icastexpr, mEnv->stackTop().getStmtVal(stmt));
-        }
-      } else if(ArraySubscriptExpr * arrsub = dyn_cast<ArraySubscriptExpr>(stmt)) {
-          // stmt->dump();
-          mEnv->bindStmt(icastexpr, mEnv->stackTop().getStmtVal(stmt));
-      }
+      if(mEnv->stackTop().hasStmt(stmt)) 
+        mEnv->bindStmt(parent, mEnv->stackTop().getStmtVal(stmt));
+    //   if(DeclRefExpr * declref = dyn_cast<DeclRefExpr>(stmt)) {
+    //     if(!declref->getType()->isFunctionType()/*!mEnv->isBuiltInDecl(declref)*/) {
+    //       // stmt->dump();
+    //       mEnv->bindStmt(icastexpr, mEnv->stackTop().getStmtVal(stmt));
+    //     }
+    //   } else if(ArraySubscriptExpr * arrsub = dyn_cast<ArraySubscriptExpr>(stmt)) {
+    //       // stmt->dump();
+    //       mEnv->bindStmt(icastexpr, mEnv->stackTop().getStmtVal(stmt));
+    //   }
     }
+
+  }
+
+  virtual void VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr * uexpr) {
+    this->VisitStmt(uexpr);
+    /// we assume the op must be `sizeof` 
+    // uexpr->getExprStmt()->dump();
+    auto argType = uexpr->getArgumentTypeInfo()->getType();
+    int sz = 0;
+    if(argType->isPointerType()) {
+      sz = sizeof(Heap::HeapAddr);
+    } else if(argType->isIntegerType()) {
+      sz = sizeof(int);
+    } else {
+      llvm::errs() << "Unknown Type:\n";
+      argType.dump();
+      throw std::exception();
+    }
+    mEnv->bindStmt(uexpr, sz);
   }
 private:
   Environment *mEnv;

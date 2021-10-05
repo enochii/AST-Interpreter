@@ -43,6 +43,7 @@ public:
     //   return pi->getValue().getSExtValue();
     // }
     if(!hasStmt(stmt)) {
+      llvm::errs() << "We cannot find the value of below stmt:\n";
       stmt->dump();
     }
     assert(mExprs.find(stmt) != mExprs.end());
@@ -54,15 +55,46 @@ public:
 };
 
 /// Heap maps address to a value
-/*
 class Heap {
 public:
-   int Malloc(int size) ;
-   void Free (int addr) ;
-   void Update(int addr, int val) ;
-   int get(int addr);
+  typedef int HeapAddr;
+private:
+  /// In this simple heap implementation, we malloc a space.
+  /// And we will keep it until the interpreter exits
+  static const HeapAddr INIT_HEAP_SIZE = sizeof(int) * 1024; 
+  void *mHeapPtr;
+  HeapAddr mOffset;
+
+  inline int* actualAddr(HeapAddr addr) {
+    assert(addr <= INIT_HEAP_SIZE);
+    return (int*)((char*)mHeapPtr+addr);
+  }
+public:
+    
+    Heap():mHeapPtr(malloc(INIT_HEAP_SIZE)), mOffset(0) {}
+    ~Heap(){ free(mHeapPtr); }
+    HeapAddr Malloc(int size) {
+      HeapAddr ret = mOffset;
+      mOffset =+ size;
+      llvm::errs() << "allocate size=" << size << ", return address=" << ret << ", still have " << INIT_HEAP_SIZE-mOffset << "\n";
+      assert(mOffset <= INIT_HEAP_SIZE);
+      return ret;
+    }
+    void Free (HeapAddr addr) {
+      /// do nothing?
+      /// this naive implementation will run out of memory when we simply keep malloc then free.
+    }
+    void Update(HeapAddr addr, int val) {
+      int * ptr = actualAddr(addr);
+      *ptr = val;
+      llvm::errs() << "Update *" << addr << " -> " << val << "\n";
+    }
+    int get(HeapAddr addr) {
+      int * ptr = actualAddr(addr);
+      return *ptr;
+    }
 };
-*/
+
 
 class ReturnException : public std::exception {
   int mRet;
@@ -89,6 +121,7 @@ public:
 };
 
 class Environment {
+  Heap mHeap;
   std::vector<StackFrame> mStack;
   std::vector<Array> mArrays;
 
@@ -180,6 +213,13 @@ public:
       case UO_LNot:
         val = !val;
         break;
+      case UO_Deref:
+        val = mHeap.get(val);
+        break;
+      default:
+        llvm::errs() << "Below uop is not supported: \n";
+        uop->dump();
+        break;
     }
     stackTop().bindStmt(uop, val);
   }
@@ -187,7 +227,7 @@ public:
   void binop(BinaryOperator *bop) {
     Expr *left = bop->getLHS();
     Expr *right = bop->getRHS();
-    int lval = mStack.back().getStmtVal(left);
+    // int lval = mStack.back().getStmtVal(left);
     int rval = mStack.back().getStmtVal(right);
 
     auto opCode = bop->getOpcode();
@@ -202,19 +242,27 @@ public:
         auto idx = getArrayIdx(arrsub);
         arr.set(idx, rval);
         this->bindStmt(arrsub, rval);
+      } else if(UnaryOperator * uop = dyn_cast<UnaryOperator>(left)) {
+        assert(uop->getOpcode() == UO_Deref); /// currently supported
+        int addr = stackTop().getStmtVal(uop->getSubExpr());
+        mHeap.Update(addr, rval);
+        this->bindStmt(uop, rval); /// `*ptr = VAL;` should return VAL
       } else {
-        llvm::errs() << "Below Assignment is Not Supported\n";
+        llvm::errs() << "Below Assignment(LHS) is Not Supported\n";
         left->dump();
       }
     } else if (bop->isAdditiveOp()) {
+      int lval = mStack.back().getStmtVal(left);
       if (opCode == BO_Add) res = lval + rval;
       else res = lval - rval;
       stackTop().bindStmt(bop, res);
     } else if (bop->isMultiplicativeOp()) {
+      int lval = mStack.back().getStmtVal(left);
       if(opCode == BO_Mul) res = lval * rval;
       else res = lval % rval;
       stackTop().bindStmt(bop, res);
     } else if (bop->isComparisonOp()) {
+      int lval = mStack.back().getStmtVal(left);
       int val = SCH001;
       switch (opCode) {
       case BO_LT:
@@ -303,7 +351,8 @@ public:
   }
 
   static bool isValidDeclRefType(DeclRefExpr *declref) {
-    return declref->getType()->isIntegerType() || declref->getType()->isArrayType();
+    auto tp = declref->getType();
+    return tp->isIntegerType() || tp->isArrayType() || tp->isPointerType();
   }
 
   bool isBuiltInDecl(DeclRefExpr *declref) {
@@ -320,6 +369,9 @@ public:
 
       int val = this->getDeclVal(decl);
       mStack.back().bindStmt(declref, val);
+    } else if(!isBuiltInDecl(declref)){
+      llvm::errs() << "Below declref is not supported:\n";
+      declref->dump();
     }
   }
 
@@ -346,6 +398,15 @@ public:
       Expr *decl = callexpr->getArg(0);
       val = mStack.back().getStmtVal(decl);
       llvm::errs() << val;
+    } else if (callee == mMalloc) {
+      Expr *decl = callexpr->getArg(0);
+      val = mStack.back().getStmtVal(decl); /// malloc size
+      int addr = mHeap.Malloc(val); /// our "address"
+      stackTop().bindStmt(callexpr, addr);
+    } else if (callee == mFree) {
+      Expr *decl = callexpr->getArg(0);
+      val = mStack.back().getStmtVal(decl); /// address waited to free
+      mHeap.Free(val);
     } else {
       /// first we get the arguments from caller frame
       std::vector<int> args;
