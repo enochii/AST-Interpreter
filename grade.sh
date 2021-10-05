@@ -20,7 +20,8 @@ for file in $file_list; do
     # result given by our interpreter
     filename="$TEST_DIR/$file"
     ccode=$(cat $filename)
-    actual=$(echo $correct|$ASTI "$ccode") # make $correct as the user input
+    # make $correct as the user input, you can change it if you like
+    actual=$(echo $correct|$ASTI "$ccode") 
     # result given by gcc
     gcc $filename $LIBCODE -o x.out
     expected=$(echo $correct|./x.out)
@@ -29,4 +30,5 @@ for file in $file_list; do
         correct=$(( $correct + 1 ))
     fi
 done
+rm x.out
 echo "$correct/$total"
