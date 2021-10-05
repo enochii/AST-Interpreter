@@ -47,14 +47,16 @@ public:
   }
   virtual void VisitCallExpr(CallExpr *call) {
     VisitStmt(call);
-    mEnv->call(call);
+    bool notBuiltin = mEnv->call(call);
     // FunctionDecl * callee = call->getDirectCallee();
     try {
-      VisitStmt(mEnv->stackTop().getPC());
+      /// visit function body
+      if(notBuiltin)
+        VisitStmt(mEnv->stackTop().getPC());
     } catch (ReturnException &e) {
       int retVal = e.getRetVal();
       mEnv->stackPop();
-      llvm::errs() << "catch val: " << retVal << "\n";
+      // llvm::errs() << "catch val: " << retVal << "\n";
       mEnv->stackTop().bindStmt(call, retVal);
     }
   }
