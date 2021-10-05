@@ -7,13 +7,13 @@ extern void PRINT(int);
 int f(int x) {
     x = 10;
     if(x > 9) 
-        PRINT(1);
+        PRINT(202);
     // int b = 1211;
     return x;
 }
 
 int main() {
     int a;
-    a = f(10);
+    // a = f(10);
     PRINT(f(10));
 }

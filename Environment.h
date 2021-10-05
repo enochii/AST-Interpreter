@@ -410,7 +410,8 @@ public:
   }
 
   /// !TODO Support Function Call
-  void call(CallExpr *callexpr) {
+  bool call(CallExpr *callexpr) {
+    bool notBuiltin = false;
     mStack.back().setPC(callexpr);
     int val = 0;
     FunctionDecl *callee = callexpr->getDirectCallee();
@@ -422,7 +423,7 @@ public:
     } else if (callee == mOutput) {
       Expr *decl = callexpr->getArg(0);
       val = mStack.back().getStmtVal(decl);
-      llvm::errs() << val;
+      llvm::outs() << val;
     } else if (callee == mMalloc) {
       Expr *decl = callexpr->getArg(0);
       val = mStack.back().getStmtVal(decl); /// malloc size
@@ -433,6 +434,8 @@ public:
       val = mStack.back().getStmtVal(decl); /// address waited to free
       mHeap.Free(val);
     } else {
+      // llvm::errs() << "function call\n";
+      notBuiltin = true;
       /// first we get the arguments from caller frame
       std::vector<int> args;
       Expr ** exprList = callexpr->getArgs();
@@ -450,12 +453,13 @@ public:
       int retVal = 0;
       mStack.back().setPC(callee->getBody());
     }
+    return notBuiltin;
   }
 
   void retrn(ReturnStmt *retstmt) {
     stackTop().setPC(retstmt);
     int val = stackTop().getStmtVal(retstmt->getRetValue());
-    llvm::errs() << "return val: " << val << "\n";
+    // llvm::errs() << "return val: " << val << "\n";
     throw ReturnException(val);
   }
 };

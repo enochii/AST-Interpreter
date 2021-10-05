@@ -3,7 +3,7 @@
 cmake_minimum_required(VERSION 3.1.0)
 project(assign1)
 
-find_package(Clang REQUIRED CONFIG HINTS /usr/local/llvm10d /usr/local/llvm10d/lib/cmake/clang NO_DEFAULT_PATH)
+find_package(Clang REQUIRED CONFIG HINTS ${LLVM_DIR} ${LLVM_DIR}/lib/cmake/clang NO_DEFAULT_PATH)
 
 include_directories(${LLVM_INCLUDE_DIRS} ${CLANG_INCLUDE_DIRS} SYSTEM)
 link_directories(${LLVM_LIBRARY_DIRS})
