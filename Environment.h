@@ -43,7 +43,7 @@ public:
     //   return pi->getValue().getSExtValue();
     // }
     if(!hasStmt(stmt)) {
-      llvm::errs() << "We cannot find the value of below stmt:\n";
+      llvm::outs() << "We cannot find the value of below stmt:\n";
       stmt->dump();
     }
     assert(mExprs.find(stmt) != mExprs.end());
@@ -76,7 +76,7 @@ public:
     HeapAddr Malloc(int size) {
       HeapAddr ret = mOffset;
       mOffset =+ size;
-      llvm::errs() << "allocate size=" << size << ", return address=" << ret << ", still have " << INIT_HEAP_SIZE-mOffset << "\n";
+      llvm::outs() << "allocate size=" << size << ", return address=" << ret << ", still have " << INIT_HEAP_SIZE-mOffset << "\n";
       assert(mOffset <= INIT_HEAP_SIZE);
       return ret;
     }
@@ -87,7 +87,7 @@ public:
     void Update(HeapAddr addr, int val) {
       int * ptr = actualAddr(addr);
       *ptr = val;
-      llvm::errs() << "Update *" << addr << " -> " << val << "\n";
+      llvm::outs() << "Update *" << addr << " -> " << val << "\n";
     }
     int get(HeapAddr addr) {
       int * ptr = actualAddr(addr);
@@ -156,7 +156,7 @@ public:
       stackTop().bindDecl(decl, val);
     } else {
       /// it should be a global variable
-      llvm::errs() << "bind global decl\n";
+      llvm::outs() << "bind global decl\n";
       globalScope().bindDecl(decl, val);
     }
   }
@@ -165,7 +165,7 @@ public:
       return stackTop().getDeclVal(decl);
     } else {
       /// it should be a global variable
-      // llvm::errs() << "get global decl\n";
+      // llvm::outs() << "get global decl\n";
       // decl->dump();
       return globalScope().getDeclVal(decl);
     }
@@ -226,7 +226,7 @@ public:
         val = mHeap.get(val);
         break;
       default:
-        llvm::errs() << "Below uop is not supported: \n";
+        llvm::outs() << "Below uop is not supported: \n";
         uop->dump();
         break;
     }
@@ -274,7 +274,7 @@ public:
         mHeap.Update(addr, rval);
         this->bindStmt(uop, rval); /// `*ptr = VAL;` should return VAL
       } else {
-        llvm::errs() << "Below Assignment(LHS) is Not Supported\n";
+        llvm::outs() << "Below Assignment(LHS) is Not Supported\n";
         left->dump();
       }
     } else if (bop->isAdditiveOp()) {
@@ -309,12 +309,12 @@ public:
         val = (lval != rval);
         break;
       }
-      // llvm::errs() << "op: " << op << "val " << val << "\n";
+      // llvm::outs() << "op: " << op << "val " << val << "\n";
       stackTop().bindStmt(bop, val);
     }
 
     else {
-      llvm::errs() << "Below Binary op is Not Supported\n";
+      llvm::outs() << "Below Binary op is Not Supported\n";
       bop->dump();
     }
   }
@@ -331,7 +331,7 @@ public:
       auto carrayType = dyn_cast<const ConstantArrayType>(arrayType);
       int sz = carrayType->getSize().getSExtValue();
       assert(sz > 0);
-      llvm::errs() << "Init a array with size=" << carrayType->getSize() << "\n";
+      llvm::outs() << "Init a array with size=" << carrayType->getSize() << "\n";
       mArrays.emplace_back(sz, mStack.size());
       stackTop().bindDecl(vardecl, mArrays.size()-1);
     }
@@ -351,7 +351,7 @@ public:
       Decl *decl = *it;
       if (VarDecl *vardecl = dyn_cast<VarDecl>(decl)) {
         handleVarDecl(vardecl);
-        // llvm::errs() << "opaque data: " << vardecl->getTypeSourceInfo()->getTypeLoc().getOpaqueData() << "\n";
+        // llvm::outs() << "opaque data: " << vardecl->getTypeSourceInfo()->getTypeLoc().getOpaqueData() << "\n";
       }
     }
   }
@@ -367,11 +367,11 @@ public:
   }
 
   void arraysub(ArraySubscriptExpr * arrsubexpr) {
-    // llvm::errs() << "getBase() " << arrsubexpr->getBase() << "\n";
+    // llvm::outs() << "getBase() " << arrsubexpr->getBase() << "\n";
     auto& arr = getArray(arrsubexpr);
     int idx = getArrayIdx(arrsubexpr);
     int res = arr.get(idx);
-    // llvm::errs() << "arr[" << idx << "]-> " << res << "\n";
+    // llvm::outs() << "arr[" << idx << "]-> " << res << "\n";
     stackTop().bindStmt(arrsubexpr, res);
   }
 
@@ -395,7 +395,7 @@ public:
       int val = this->getDeclVal(decl);
       mStack.back().bindStmt(declref, val);
     } else if(!isBuiltInDecl(declref) && !declref->getType()->isFunctionType()){
-      llvm::errs() << "Below declref is not supported:\n";
+      llvm::outs() << "Below declref is not supported:\n";
       declref->dump();
     }
   }
@@ -416,14 +416,14 @@ public:
     int val = 0;
     FunctionDecl *callee = callexpr->getDirectCallee();
     if (callee == mInput) {
-      llvm::errs() << "Please Input an Integer Value : ";
+      llvm::outs() << "Please Input an Integer Value : ";
       scanf("%d", &val);
 
       mStack.back().bindStmt(callexpr, val);
     } else if (callee == mOutput) {
       Expr *decl = callexpr->getArg(0);
       val = mStack.back().getStmtVal(decl);
-      llvm::outs() << val;
+      llvm::errs() << val;
     } else if (callee == mMalloc) {
       Expr *decl = callexpr->getArg(0);
       val = mStack.back().getStmtVal(decl); /// malloc size
@@ -434,7 +434,7 @@ public:
       val = mStack.back().getStmtVal(decl); /// address waited to free
       mHeap.Free(val);
     } else {
-      // llvm::errs() << "function call\n";
+      // llvm::outs() << "function call\n";
       notBuiltin = true;
       /// first we get the arguments from caller frame
       std::vector<int> args;
@@ -459,7 +459,7 @@ public:
   void retrn(ReturnStmt *retstmt) {
     stackTop().setPC(retstmt);
     int val = stackTop().getStmtVal(retstmt->getRetValue());
-    // llvm::errs() << "return val: " << val << "\n";
+    // llvm::outs() << "return val: " << val << "\n";
     throw ReturnException(val);
   }
 };

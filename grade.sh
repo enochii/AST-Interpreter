@@ -21,7 +21,7 @@ for file in $file_list; do
     filename="$TEST_DIR/$file"
     ccode=$(cat $filename)
     # make $correct as the user input, you can change it if you like
-    actual=$(echo $correct|$ASTI "$ccode") 
+    actual=$(echo $correct|($ASTI "$ccode" 2>&1 >/dev/null)) 
     # result given by gcc
     gcc $filename $LIBCODE -o x.out
     expected=$(echo $correct|./x.out)

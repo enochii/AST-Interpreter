@@ -40,7 +40,7 @@ The mechanism of function call is mainly related to 2 functions:
       } catch (ReturnException& e) {
          int retVal = e.getRetVal();
          mEnv->stackPop();
-         llvm::errs() << "catch val: " << retVal << "\n";
+         llvm::outs() << "catch val: " << retVal << "\n";
          mEnv->stackTop().bindStmt(call, retVal);
       }
    }

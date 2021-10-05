@@ -56,13 +56,13 @@ public:
     } catch (ReturnException &e) {
       int retVal = e.getRetVal();
       mEnv->stackPop();
-      // llvm::errs() << "catch val: " << retVal << "\n";
+      // llvm::outs() << "catch val: " << retVal << "\n";
       mEnv->stackTop().bindStmt(call, retVal);
     }
   }
   virtual void VisitDeclStmt(DeclStmt *declstmt) {
 #if DEBUG_FLAG
-    // llvm::errs() << "VisitDeclStmt" << "\n";
+    // llvm::outs() << "VisitDeclStmt" << "\n";
 #endif
     // VisitStmt(declstmt);
     mEnv->decl(declstmt);
@@ -71,22 +71,22 @@ public:
   int getChildrenSize(Stmt * stmt) {
     int i = 0;
     for (auto c:stmt->children()) {
-      // llvm::errs() << "child " << i << " " << c << " ";
+      // llvm::outs() << "child " << i << " " << c << " ";
       i++;
     }
-    // llvm::errs() << "\n";
+    // llvm::outs() << "\n";
     return i;
   }
   virtual void VisitArraySubscriptExpr(ArraySubscriptExpr * arrsubexpr) {
     // arrsubexpr->dump();
-    // llvm::errs() << "children size=" << getChildrenSize(arrsubexpr) << "\n";
+    // llvm::outs() << "children size=" << getChildrenSize(arrsubexpr) << "\n";
     VisitStmt(arrsubexpr);
     mEnv->arraysub(arrsubexpr);
   }
 
   // virtual void VisitParmVarDecl(ParmVarDecl * parmdecl) {
   // #if DEBUG_FLAG
-  //    llvm::errs() << "VisitParmVarDecl" << "\n";
+  //    llvm::outs() << "VisitParmVarDecl" << "\n";
   // #endif
   //    mEnv->parm(parmdecl);
   // }
@@ -101,11 +101,11 @@ public:
     this->Visit(condExpr);
     int cond = mEnv->stackTop().getStmtVal(condExpr);
     if (cond) {
-      // llvm::errs() << "then branch\n";
+      // llvm::outs() << "then branch\n";
       if (ifstmt->getThen()) this->Visit(ifstmt->getThen());
     } else {
       if (ifstmt->getElse()) this->Visit(ifstmt->getElse());
-      // llvm::errs() << "else branch\n";
+      // llvm::outs() << "else branch\n";
     }
   }
 
@@ -179,7 +179,7 @@ public:
     } else if(argType->isIntegerType()) {
       sz = sizeof(int);
     } else {
-      llvm::errs() << "Unknown Type:\n";
+      llvm::outs() << "Unknown Type:\n";
       argType.dump();
       throw std::exception();
     }
@@ -205,7 +205,7 @@ public:
     } catch (ReturnException & e) {
       /// catch main return value
       if(e.getRetVal() != 0) {
-        llvm::errs() << "main exit with a non-zero code!\n";
+        llvm::outs() << "main exit with a non-zero code!\n";
       }
     }
   }
