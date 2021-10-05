@@ -394,7 +394,7 @@ public:
 
       int val = this->getDeclVal(decl);
       mStack.back().bindStmt(declref, val);
-    } else if(!isBuiltInDecl(declref)){
+    } else if(!isBuiltInDecl(declref) && !declref->getType()->isFunctionType()){
       llvm::errs() << "Below declref is not supported:\n";
       declref->dump();
     }
