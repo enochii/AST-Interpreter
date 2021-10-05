@@ -119,7 +119,7 @@ public:
 
   virtual void VisitForStmt(ForStmt * fstmt) {
     Stmt * initstmt = fstmt->getInit();
-    this->Visit(initstmt);
+    if (initstmt) this->Visit(initstmt);
     Expr * condExpr = fstmt->getCond();
     do {
       this->Visit(condExpr);
@@ -166,7 +166,14 @@ public:
     mEnv.init(decl);
 
     FunctionDecl *entry = mEnv.getEntry();
-    mVisitor.VisitStmt(entry->getBody());
+    try {
+      mVisitor.VisitStmt(entry->getBody());
+    } catch (ReturnException & e) {
+      /// catch main return value
+      if(e.getRetVal() != 0) {
+        llvm::errs() << "main exit with a non-zero code!\n";
+      }
+    }
   }
 
 private:
