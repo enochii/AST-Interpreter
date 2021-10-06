@@ -1,4 +1,4 @@
-# build the asti first...
+# build the ast-interpreter first...
 mkdir build
 cd build
 # this line should be changed according to your env
@@ -6,7 +6,7 @@ cmake –DLLVM_DIR=/usr/local/llvm10d -DClang_DIR=/usr/local/llvm10d/lib/cmake/c
 make
 cd .. 
 # if no error occurs, we get a executable file
-ASTI="./build/asti"
+ASTI="./build/ast-interpreter"
 LIBCODE="./lib/builtin.c"
 
 TEST_DIR="./test"
@@ -16,11 +16,12 @@ total=$(echo "$file_list"|wc -w)
 correct=0
 echo "total test cases: $total"
 for file in $file_list; do
-    echo "testing $file"
+    # echo "testing $file"
     # result given by our interpreter
     filename="$TEST_DIR/$file"
     ccode=$(cat $filename)
     # make $correct as the user input, you can change it if you like
+    # in case you use "GET()" call, we need user input
     actual=$(echo $correct|($ASTI "$ccode" 2>&1 >/dev/null)) 
     # result given by gcc
     gcc $filename $LIBCODE -o x.out
