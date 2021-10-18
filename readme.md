@@ -25,6 +25,10 @@ Run our tiny interpreter:
 "`cat ../test/test01.c`"
 ```
 
-### Run the Test!
+### Test & grading
 
-TO APPEAR
+I write [a simple script](./grade.sh) to grade the interpreter implementation. It compares the output of ast-interpreter with gcc. The official grading script(`grade-official.sh`) is also provided, which is modified from `grade.sh`. Run by:
+
+```shell
+source grade.sh # or grade-official.sh
+```
