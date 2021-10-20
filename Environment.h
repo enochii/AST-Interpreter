@@ -129,7 +129,10 @@ public:
   }
 };
 
+class InterpreterVisitor;
 class Environment {
+  EvaluatedExprVisitor<InterpreterVisitor> * mInterpreter;
+
   Heap mHeap;
   std::vector<StackFrame> mStack;
   std::vector<Array> mArrays;
@@ -142,6 +145,9 @@ class Environment {
   FunctionDecl *mEntry;
 
 public:
+  void setInterpreter(EvaluatedExprVisitor<InterpreterVisitor> * visitor) {
+    this->mInterpreter = visitor;
+  }
   void stackPop() { 
     mStack.pop_back();
     //TODO: clear array
@@ -253,13 +259,14 @@ public:
   void binop(BinaryOperator *bop) {
     Expr *left = bop->getLHS();
     Expr *right = bop->getRHS();
-    // int lval = mStack.back().getStmtVal(left);
-    int rval = mStack.back().getStmtVal(right);
+    // int lval = stackTop().getStmtVal(left);
+    int rval = stackTop().getStmtVal(right);
 
     auto opCode = bop->getOpcode();
     int res = 0;
     if (bop->isAssignmentOp()) {
-      mStack.back().bindStmt(left, rval);
+      stackTop().bindStmt(left, rval);
+      stackTop().bindStmt(bop, rval); // bop as a whole!
       if (DeclRefExpr *declexpr = dyn_cast<DeclRefExpr>(left)) {
         Decl *decl = declexpr->getFoundDecl();
         this->bindDecl(decl, rval);
@@ -278,16 +285,16 @@ public:
         left->dump();
       }
     } else if (bop->isAdditiveOp()) {
-      int lval = mStack.back().getStmtVal(left);
+      int lval = stackTop().getStmtVal(left);
       res = handleAdditive(opCode, left, right, lval, rval);
       stackTop().bindStmt(bop, res);
     } else if (bop->isMultiplicativeOp()) {
-      int lval = mStack.back().getStmtVal(left);
+      int lval = stackTop().getStmtVal(left);
       if(opCode == BO_Mul) res = lval * rval;
       else res = lval % rval;
       stackTop().bindStmt(bop, res);
     } else if (bop->isComparisonOp()) {
-      int lval = mStack.back().getStmtVal(left);
+      int lval = stackTop().getStmtVal(left);
       int val = SCH001;
       switch (opCode) {
       case BO_LT:
@@ -337,11 +344,15 @@ public:
     }
     int val = 0;
     Expr *expr = vardecl->getInit();
-    IntegerLiteral *pi;
-    if (expr != NULL && (pi = dyn_cast<IntegerLiteral>(expr))) {
-      val = pi->getValue().getSExtValue();
+    if (expr != NULL) { 
+      // if(IntegerLiteral *pi = dyn_cast<IntegerLiteral>(expr))
+      //   val = pi->getValue().getSExtValue();
+      // else {
+        mInterpreter->Visit(expr);
+        val = stackTop().getStmtVal(expr);
+      // }
     }
-    mStack.back().bindDecl(vardecl, val);
+    stackTop().bindDecl(vardecl, val);
   }
 
   void decl(DeclStmt *declstmt) {
@@ -387,13 +398,13 @@ public:
   }
 
   void declref(DeclRefExpr *declref) {
-    mStack.back().setPC(declref);
+    stackTop().setPC(declref);
     if (isValidDeclRefType(declref)) {
       // declref->dump();
       Decl *decl = declref->getFoundDecl();
 
       int val = this->getDeclVal(decl);
-      mStack.back().bindStmt(declref, val);
+      stackTop().bindStmt(declref, val);
     } else if(!isBuiltInDecl(declref) && !declref->getType()->isFunctionType()){
       llvm::outs() << "Below declref is not supported:\n";
       declref->dump();
@@ -401,37 +412,37 @@ public:
   }
 
   void cast(CastExpr *castexpr) {
-    mStack.back().setPC(castexpr);
+    stackTop().setPC(castexpr);
     if (castexpr->getType()->isIntegerType()) {
       Expr *expr = castexpr->getSubExpr();
-      int val = mStack.back().getStmtVal(expr);
-      mStack.back().bindStmt(castexpr, val);
+      int val = stackTop().getStmtVal(expr);
+      stackTop().bindStmt(castexpr, val);
     }
   }
 
   /// !TODO Support Function Call
   bool call(CallExpr *callexpr) {
     bool notBuiltin = false;
-    mStack.back().setPC(callexpr);
+    stackTop().setPC(callexpr);
     int val = 0;
     FunctionDecl *callee = callexpr->getDirectCallee();
     if (callee == mInput) {
       llvm::outs() << "Please Input an Integer Value : ";
       scanf("%d", &val);
 
-      mStack.back().bindStmt(callexpr, val);
+      stackTop().bindStmt(callexpr, val);
     } else if (callee == mOutput) {
       Expr *decl = callexpr->getArg(0);
-      val = mStack.back().getStmtVal(decl);
+      val = stackTop().getStmtVal(decl);
       llvm::errs() << val;
     } else if (callee == mMalloc) {
       Expr *decl = callexpr->getArg(0);
-      val = mStack.back().getStmtVal(decl); /// malloc size
+      val = stackTop().getStmtVal(decl); /// malloc size
       int addr = mHeap.Malloc(val); /// our "address"
       stackTop().bindStmt(callexpr, addr);
     } else if (callee == mFree) {
       Expr *decl = callexpr->getArg(0);
-      val = mStack.back().getStmtVal(decl); /// address waited to free
+      val = stackTop().getStmtVal(decl); /// address waited to free
       mHeap.Free(val);
     } else {
       // llvm::outs() << "function call\n";
@@ -451,7 +462,7 @@ public:
         this->parm(callee->getParamDecl(i), args[i]);
       }
       int retVal = 0;
-      mStack.back().setPC(callee->getBody());
+      stackTop().setPC(callee->getBody());
     }
     return notBuiltin;
   }

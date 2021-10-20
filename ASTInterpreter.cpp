@@ -19,7 +19,9 @@ using namespace clang;
 class InterpreterVisitor : public EvaluatedExprVisitor<InterpreterVisitor> {
 public:
   explicit InterpreterVisitor(const ASTContext &context, Environment *env)
-      : EvaluatedExprVisitor(context), mEnv(env) {}
+      : EvaluatedExprVisitor(context), mEnv(env) {
+        env->setInterpreter(this);
+      }
   virtual ~InterpreterVisitor() {}
 
   virtual void VisitBinaryOperator(BinaryOperator *bop) {
@@ -137,6 +139,7 @@ public:
     stealBindingFromChild(ccastexpr);
   }
   virtual void VisitImplicitCastExpr(ImplicitCastExpr * icastexpr) {
+    // llvm::outs() << "implict cast\n";
     this->VisitStmt(icastexpr);
     stealBindingFromChild(icastexpr);
   }
@@ -153,8 +156,12 @@ public:
     }
     
     if(stmt) {
-      if(mEnv->stackTop().hasStmt(stmt)) 
+      if(mEnv->stackTop().hasStmt(stmt)) {
         mEnv->bindStmt(parent, mEnv->stackTop().getStmtVal(stmt));
+        // llvm::outs() << "succ\n";
+        // stmt->dump();
+        return;
+      }
     //   if(DeclRefExpr * declref = dyn_cast<DeclRefExpr>(stmt)) {
     //     if(!declref->getType()->isFunctionType()/*!mEnv->isBuiltInDecl(declref)*/) {
     //       // stmt->dump();
@@ -165,7 +172,8 @@ public:
     //       mEnv->bindStmt(icastexpr, mEnv->stackTop().getStmtVal(stmt));
     //   }
     }
-
+    // llvm::outs() << "fail\n";
+    // stmt->dump();
   }
 
   virtual void VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr * uexpr) {
