@@ -58,3 +58,36 @@ The mechanism of function call is mainly related to 2 functions:
 	   }
    }
 ```
+
+### Naive Heap
+
+The heap implemented currently don't release memory until the interpreter exits. So if you malloc and free repeatedly, memory will eventually runs out.
+
+```c++
+/// Heap maps address to a value
+class Heap {
+   ...
+
+public:
+    
+    Heap():mHeapPtr(malloc(INIT_HEAP_SIZE)), mOffset(0) {}
+    ~Heap(){ free(mHeapPtr); }
+    HeapAddr Malloc(int size) {
+      HeapAddr ret = mOffset;
+      mOffset =+ size;
+      llvm::outs() << "allocate size=" << size << ", return address=" << ret << ", still have " << INIT_HEAP_SIZE-mOffset << "\n";
+      assert(mOffset <= INIT_HEAP_SIZE);
+      return ret;
+    }
+    void Free (HeapAddr addr) {
+      /// do nothing?
+      /// this naive implementation will run out of memory when we simply keep malloc then free.
+    }
+    void Update(HeapAddr addr, int val) {
+      int * ptr = actualAddr(addr);
+      *ptr = val;
+      llvm::outs() << "Update *" << addr << " -> " << val << "\n";
+    }
+
+    ...
+```
